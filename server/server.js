@@ -31,7 +31,7 @@ app.get('/api/events', cors(), (req, res) => {
   const initialData = {
     count: currentCount,
     message: `Current count is ${currentCount}`,
-    type: currentCount >= 5 ? 'danger' : 'info',
+    type: currentCount >= 4 ? 'danger' : 'info',
     timestamp: new Date().toISOString()
   };
   res.write(`data: ${JSON.stringify(initialData)}\n\n`);
@@ -57,10 +57,10 @@ app.post('/api/notify', cors(), async (req, res) => {
     
     const notification = {
       count: currentCount,
-      message: currentCount >= 5 ? 
+      message: currentCount >= 4 ? 
         `Warning: Maximum capacity exceeded! Current count: ${currentCount}` : 
         `Current count: ${currentCount}`,
-      type: currentCount >= 5 ? 'danger' : 'info',
+      type: currentCount >= 4 ? 'danger' : 'info',
       timestamp: new Date().toISOString()
     };
 

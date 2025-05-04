@@ -5,20 +5,45 @@ export default function Home() {
   const [notifications, setNotifications] = useState([]);
   const [currentCount, setCurrentCount] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [threshold, setThreshold] = useState(4);
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempThreshold, setTempThreshold] = useState('4');
+
+  // Add function to update threshold
+  const updateThreshold = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/threshold', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ value: parseInt(tempThreshold) }),
+      });
+
+      if (response.ok) {
+        setThreshold(parseInt(tempThreshold));
+        setIsEditing(false);
+      } else {
+        console.error('Failed to update threshold');
+      }
+    } catch (error) {
+      console.error('Error updating threshold:', error);
+    }
+  };
 
   useEffect(() => {
     let retryTimeout;
     const alertSound = new Audio('/alert.mp3');
 
     const connectSSE = () => {
-      const eventSource = new EventSource('https://mobile-alert-backend.onrender.com/api/events');
+      const eventSource = new EventSource('http://localhost:5000/api/events');
 
       eventSource.onmessage = (event) => {
         const notification = JSON.parse(event.data);
         setNotifications(prev => [notification, ...prev].slice(0, 10));
         if (notification.count !== undefined) {
           setCurrentCount(notification.count);
-          if (notification.count >= 5) {
+          if (notification.count >= threshold) {
             alertSound.play().catch(err => {
               console.warn("Audio playback blocked or failed:", err);
             });
@@ -46,7 +71,7 @@ export default function Home() {
       clearTimeout(retryTimeout);
       eventSource.close();
     };
-  }, []);
+  }, [threshold]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-3 md:p-8">
@@ -70,13 +95,52 @@ export default function Home() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
             <h2 className="text-base md:text-xl text-gray-800 dark:text-gray-200">Current Count</h2>
             <div className={`text-3xl md:text-4xl font-bold ${
-              currentCount >= 5 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+              currentCount >= threshold ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
             }`}>
-              {currentCount} / 5
+              {currentCount} / {threshold}
             </div>
           </div>
+          
+          {/* Add Threshold Control */}
+          <div className="mt-4 flex items-center gap-2">
+            <span className="text-sm text-gray-500 dark:text-gray-400">Threshold:</span>
+            {isEditing ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={tempThreshold}
+                  onChange={(e) => setTempThreshold(e.target.value)}
+                  className="w-16 px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  min="1"
+                />
+                <button
+                  onClick={updateThreshold}
+                  className="px-2 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setTempThreshold(threshold.toString());
+                  }}
+                  className="px-2 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+
           <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-2">
-            {currentCount >= 5 ? 'Maximum capacity reached!' : 'Within safe capacity'}
+            {currentCount >= threshold ? 'Maximum capacity reached!' : 'Within safe capacity'}
           </p>
         </div>
 

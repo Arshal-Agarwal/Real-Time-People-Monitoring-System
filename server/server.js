@@ -15,6 +15,7 @@ app.use(cors());
 // Store connected clients
 let clients = new Set();
 let currentCount = 0;
+let threshold = 5; // Default threshold
 
 // Basic Route
 app.get("/", (req, res) => {
@@ -31,7 +32,8 @@ app.get('/api/events', cors(), (req, res) => {
   const initialData = {
     count: currentCount,
     message: `Current count is ${currentCount}`,
-    type: currentCount >= 5 ? 'danger' : 'info',
+    type: currentCount >= threshold ? 'danger' : 'info',
+    threshold: threshold,
     timestamp: new Date().toISOString()
   };
   res.write(`data: ${JSON.stringify(initialData)}\n\n`);
@@ -57,10 +59,11 @@ app.post('/api/notify', cors(), async (req, res) => {
     
     const notification = {
       count: currentCount,
-      message: currentCount >= 5 ? 
-        `Warning: Maximum capacity exceeded! Current count: ${currentCount}` : 
+      message: currentCount >= threshold ? 
+        `Warning: Maximum capacity (${threshold}) exceeded! Current count: ${currentCount}` : 
         `Current count: ${currentCount}`,
-      type: currentCount >= 5 ? 'danger' : 'info',
+      type: currentCount >= threshold ? 'danger' : 'info',
+      threshold: threshold,
       timestamp: new Date().toISOString()
     };
 
@@ -73,6 +76,37 @@ app.post('/api/notify', cors(), async (req, res) => {
   } catch (error) {
     console.error('Notification error:', error);
     res.status(500).json({ error: 'Failed to send notification' });
+  }
+});
+
+// Endpoint to update threshold
+app.post('/api/threshold', cors(), async (req, res) => {
+  try {
+    const { value } = req.body;
+    
+    if (value === undefined || value < 1) {
+      return res.status(400).json({ error: 'Valid threshold value is required' });
+    }
+
+    threshold = parseInt(value);
+    
+    // Notify all clients about threshold change
+    const notification = {
+      count: currentCount,
+      message: `Threshold updated to ${threshold}`,
+      type: currentCount >= threshold ? 'danger' : 'info',
+      threshold: threshold,
+      timestamp: new Date().toISOString()
+    };
+
+    clients.forEach(client => {
+      client.write(`data: ${JSON.stringify(notification)}\n\n`);
+    });
+
+    res.status(200).json({ success: true, threshold });
+  } catch (error) {
+    console.error('Threshold update error:', error);
+    res.status(500).json({ error: 'Failed to update threshold' });
   }
 });
 
